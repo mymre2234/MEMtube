@@ -1,0 +1,190 @@
+
+0. Установка Django и Виртуального окружения:
+	1  mkdir django4
+
+	2  cd django4
+
+	3  python -m venv venv
+
+	4  venv\Scripts\activate
+
+	5  pip install django
+	6  django-admin startproject myproject
+	7  cd myproject
+	8  python manage.py runserver
+
+    - Перейдите в браузер по адресу http://127.0.0.1:8000/ и убедитесь, что страница отображается.
+
+2. Создание приложения:
+    - В корне проекта выполните команду:
+      python manage.py startapp accounts
+    - Добавьте 'accounts' в INSTALLED_APPS в settings.py:
+      INSTALLED_APPS = [
+          ...,
+          'accounts',
+      ]
+
+3. Настройка URL-ов проекта:
+    - В файле myproject/urls.py подключите маршруты приложения:
+      from django.contrib import admin
+      from django.urls import path, include
+
+      urlpatterns = [
+          path('admin/', admin.site.urls),
+          path('', include('accounts.urls')),
+      ]
+
+4. Настройка URL-ов в приложении:
+    - Создайте файл accounts/urls.py:
+      from django.urls import path
+      from . import views
+
+      urlpatterns = [
+          path('', views.main_page, name='main_page'),
+          path('profile/', views.profile, name='profile'),
+          path('register/', views.register, name='register'),
+          path('login/', views.login_user, name='login'),
+      ]
+
+5. Создание модели:
+    - В файле accounts/models.py создайте модель CustomUser:
+      from django.db import models
+      from django.contrib.auth.models import AbstractUser
+
+      class CustomUser(AbstractUser):
+          age = models.PositiveIntegerField(null=True, blank=True)
+
+    - В settings.py укажите свою модель пользователя:
+      AUTH_USER_MODEL = 'accounts.CustomUser'
+
+    - Выполните миграции:
+      python manage.py makemigrations
+      python manage.py migrate
+
+6. Создание форм:
+    - В файле accounts/forms.py создайте формы для регистрации и логина:
+      from django import forms
+      from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+      from .models import CustomUser
+
+      class RegisterForm(UserCreationForm):
+          email = forms.EmailField(required=True)
+          age = forms.IntegerField(required=True, min_value=0)
+
+          class Meta:
+              model = CustomUser
+              fields = ['email', 'username', 'age', 'password1', 'password2']
+
+      class LoginForm(AuthenticationForm):
+          class Meta:
+              model = CustomUser
+              fields = ['username', 'password']
+
+7. Создание представлений:
+    - В файле accounts/views.py создайте логику для страниц:
+      from django.shortcuts import render, redirect
+      from django.contrib.auth import login, authenticate
+      from django.contrib.auth.decorators import login_required
+      from .forms import RegisterForm, LoginForm
+      from .models import CustomUser
+
+      def main_page(request):
+          return render(request, 'accounts/main_page.html')
+
+      def register(request):
+          if request.method == 'POST':
+              form = RegisterForm(request.POST)
+              if form.is_valid():
+                  user = form.save()
+                  login(request, user)
+                  return redirect('profile')
+          else:
+              form = RegisterForm()
+          return render(request, 'accounts/register.html', {'form': form})
+
+      def login_user(request):
+          if request.method == 'POST':
+              form = LoginForm(data=request.POST)
+              if form.is_valid():
+                  username = form.cleaned_data.get('username')
+                  password = form.cleaned_data.get('password')
+                  user = authenticate(request, username=username, password=password)
+                  if user is not None:
+                      login(request, user)
+                      return redirect('profile')
+          else:
+              form = LoginForm()
+          return render(request, 'accounts/login.html', {'form': form})
+
+      @login_required
+      def profile(request):
+          return render(request, 'accounts/profile.html', {'user': request.user})
+
+8. Создание шаблонов:
+    - Создайте папку templates/accounts/ и добавьте следующие HTML файлы:
+
+    1. main_page.html:
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Main Page</title>
+        </head>
+        <body>
+            <h1>Welcome to the Main Page</h1>
+            <a href="{% url 'login' %}">Login</a> |
+            <a href="{% url 'register' %}">Register</a>
+        </body>
+        </html>
+
+    2. register.html:
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Register</title>
+        </head>
+        <body>
+            <h1>Register</h1>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">Register</button>
+            </form>
+        </body>
+        </html>
+
+    3. login.html:
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Login</title>
+        </head>
+        <body>
+            <h1>Login</h1>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">Login</button>
+            </form>
+        </body>
+        </html>
+
+    4. profile.html:
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Profile</title>
+        </head>
+        <body>
+            <h1>Welcome, {{ user.username }}</h1>
+            <p>Email: {{ user.email }}</p>
+            <p>Age: {{ user.age }}</p>
+        </body>
+        </html>
+
+9. Запуск сервера:
+- Выполните миграции:
+      python manage.py makemigrations
+      python manage.py migrate
+    - Запустите сервер:
+      python manage.py runserver
+    - Перейдите на /, зарегистрируйтесь, войдите в систему и проверьте профиль.
